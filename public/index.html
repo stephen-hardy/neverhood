@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+    <meta charset="utf-8">
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport">
+    <title>The Neverhood - Cloudflare Worker Edition</title>
+    <style>
+        body { margin: 0; padding: none; background-color: #000; color: #fff; font-family: sans-serif; overflow: hidden; }
+        canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; image-rendering: pixelated; image-rendering: crisp-edges; }
+        #status { position: fixed; bottom: 10px; left: 10px; z-index: 10; background: rgba(0,0,0,0.5); padding: 5px 10px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="status">Initializing Worker...</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const status = document.getElementById('status');
+        
+        // Use OffscreenCanvas if supported
+        if (!canvas.transferControlToOffscreen) {
+            status.innerText = "Error: Your browser does not support OffscreenCanvas.";
+        } else {
+            const offscreen = canvas.transferControlToOffscreen();
+            const worker = new Worker('worker.v1.js');
+            
+            worker.postMessage({
+                canvas: offscreen,
+                type: 'init'
+            }, [offscreen]);
+
+            worker.onmessage = (e) => {
+                if (e.data.type === 'status') {
+                    status.innerText = e.data.text;
+                }
+            };
+
+            // Proxy input events to worker
+            ['mousedown', 'mouseup', 'mousemove', 'keydown', 'keyup'].forEach(type => {
+                window.addEventListener(type, (e) => {
+                    // Minimal event proxying
+                    worker.postMessage({
+                        type: 'event',
+                        event: {
+                            type: e.type,
+                            button: e.button,
+                            clientX: e.clientX,
+                            clientY: e.clientY,
+                            movementX: e.movementX,
+                            movementY: e.movementY,
+                            offsetX: e.offsetX,
+                            offsetY: e.offsetY,
+                            keyCode: e.keyCode,
+                            key: e.key,
+                            shiftKey: e.shiftKey,
+                            ctrlKey: e.ctrlKey,
+                            altKey: e.altKey,
+                            metaKey: e.metaKey
+                        },
+                        rect: canvas.getBoundingClientRect()
+                    });
+                });
+            });
+        }
+    </script>
+</body>
+</html>

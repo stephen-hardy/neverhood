@@ -1,0 +1,15 @@
+name = "neverhood"
+main = "src/index.ts"
+compatibility_date = "2024-05-03"
+account_id = "735f03976ee3de751fe5aed6be82739a"
+
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "neverhood-assets"
+
+[[kv_namespaces]]
+binding = "SAVES"
+id = "02ebfb0bf17747fb90fdf4da4a71b64a"
+
+[observability]
+enabled = true

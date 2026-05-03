@@ -1,0 +1,13 @@
+# The Neverhood - Cloudflare Worker Edition
+
+## Codebase Architecture
+- The application uses ScummVM compiled to WebAssembly via Emscripten (`engine_v2.js`, `scummvm.wasm`).
+- The Web Worker `public/worker.v1.js` mocks browser APIs (like `window`, `document`, `screen`) to run Emscripten in a Worker instead of the main thread.
+- ScummVM fetches game files using an `HTTPFilesystemNode`. It relies heavily on HTTP requests rather than Emscripten's `FS.createLazyFile()`.
+- The Cloudflare Worker script `src/index.ts` intercepts these fetches, maps them, and serves static files or proxies game assets from the `ASSETS` R2 Bucket.
+
+## Key Operating Principles
+1. **Emscripten Mocks:** The worker mock `worker.v1.js` must properly stub browser APIs. Crucially, `document.querySelector` and `canvas` interaction need mocked standard DOM functions (`addEventListener`, `getBoundingClientRect`) or Emscripten's startup logic will crash. Forwarding UI events accurately to the worker is necessary for the game's cursor/input to work.
+2. **ScummVM HTTP Filesystem (`/data/`):** ScummVM reads its root directory (`/data/`) using `index.json`. For the `AdvancedDetector` to pick up games, `index.json` must map filenames to their **exact file sizes** (e.g., `{"A.BLB": 50571893}`). If sizes are absent, `0`, or formatted as objects (`{"A.BLB": {"size": ...}}`), ScummVM will skip detection and drop to the UI Launcher instead of direct booting the game.
+3. **ScummVM Case Sensitivity:** Always provide both uppercase and lowercase aliases in `index.json` to prevent ScummVM's detector from missing case-sensitive files (`A.BLB` vs `a.blb`), though `name clash` warnings can be safely ignored.
+4. **Cloudflare Worker Static Assets (`public/`):** Edits to files in `public/` (like `worker.v1.js`) must be manually synced/uploaded to the local/remote R2 buckets. `wrangler dev` does not automatically reflect local static file changes for `ASSETS` without `wrangler r2 object put`.
